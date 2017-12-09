@@ -1,0 +1,23 @@
+### nginx-proxy ###
+version: '3'
+
+services:
+  nginx-proxy:
+    image: marvambass/nginx-ssl-secure
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./www:/var/www:ro
+      - ./conf.d:/etc/nginx/conf.d
+      - ./external:/etc/nginx/external
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - proxy-tier
+
+# Use an existing network
+networks:
+  proxy-tier:
+    external:
+      name: www-network
