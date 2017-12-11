@@ -3,7 +3,8 @@ version: '3'
 
 services:
   nginx-proxy:
-    image: marvambass/nginx-ssl-secure
+    image: nginx
+    container_name: nginx-proxy
     restart: always
     ports:
       - "443:443"
@@ -11,8 +12,8 @@ services:
     volumes:
       - ./www:/var/www:ro
       - ./conf.d:/etc/nginx/conf.d
-      - ./external:/etc/nginx/external
       - ./ssl:/etc/nginx/ssl:ro
+      - ./snippets:/etc/nginx/snippets
     networks:
       - proxy-tier
 
