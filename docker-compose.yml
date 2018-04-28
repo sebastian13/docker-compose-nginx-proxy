@@ -1,4 +1,8 @@
-### nginx-proxy ###
+### NGINX-PROXY
+###
+### Author: Sebastian Plocek
+### https://github.com/sebastian13/docker-compose-nginx-proxy
+
 version: '3'
 
 services:
@@ -11,11 +15,41 @@ services:
       - "80:80"
     volumes:
       - ./www:/var/www:ro
-      - ./conf.d:/etc/nginx/conf.d
+      - ./conf.d:/etc/nginx/conf.d:ro
       - ./ssl:/etc/nginx/ssl:ro
-      - ./snippets:/etc/nginx/snippets
+      - ./snippets:/etc/nginx/snippets:ro
+      - ./protect:/etc/nginx/protect:ro
     networks:
       - proxy-tier
+
+  # Let's Encrypt / Certbot
+  # Check README.md to know how to issue new certs.
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./ssl:/etc/letsencrypt
+      - ./ssl-log:/var/log/letsencrypt
+      - ./www/.well-known:/var/www/.well-known
+    command: [
+            "renew",
+          ]
+
+  # The "reloader" will renew certbot's certificates if needed,
+  # and reloads the nginx' configuration afterwards.
+  reload:
+    image: docker
+    container_name: nginx-proxy-reloader
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    command: >
+           sh -c "
+                  docker exec certbot renew;
+                  docker exec nginx-proxy nginx -t;
+                  docker exec nginx-proxy nginx -s reload
+                  "
+    labels:
+      cron.schedule: "@weekly"  
 
 # Use an existing network
 networks:
