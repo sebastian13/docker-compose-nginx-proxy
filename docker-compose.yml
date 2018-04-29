@@ -44,7 +44,8 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
     command: >
            sh -c "
-                  docker exec certbot renew;
+                  docker start certbot;
+                  sleep 60s;
                   docker exec nginx-proxy nginx -t;
                   docker exec nginx-proxy nginx -s reload
                   "
