@@ -27,6 +27,8 @@ services:
   certbot:
     image: certbot/certbot
     container_name: certbot
+    depends_on:
+      - nginx-proxy
     volumes:
       - ./ssl:/etc/letsencrypt
       - ./ssl-log:/var/log/letsencrypt

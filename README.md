@@ -1,20 +1,23 @@
 # Nginx-Proxy
 
-This docker-compose.yml users the **official nginx** container. It has optimized nginx configuration to use it together with let's encrypt certbot. You should get an **A+ rating** at <https://www.ssllabs.com/ssltest>
+This docker-compose.yml users the **official nginx** and the **official certbot** container. It has optimized nginx configuration to be used as a https proxy together with certbot. Following my instructions you should get an <span style="color:green; font-weight:bold;">A+ rating</span> at [ssllabs.com](https://www.ssllabs.com/ssltest).
 
-The container will use the network **www-network** as proxy-tier. Add every container to this network, you want to be in the same network as the nginx-proxy.
+
+
+The container will use the network **www-network** as a proxy-tier. Add every container to this network that servers as a upstream http host.
 
 ## Directory structure
 
 ```
 .
-├── conf.d			         # All our site-specific configuration
-│   ├── example.com.conf     
+├── conf.d                       # Site-specific configuration
+│   ├── example.com.conf
 │   ├── ...
-├── protect                  # HTTP Password Protection
+├── protect                      # HTTP Password Protection
 │   ├── .htpasswd
-├── snippets                 # Config we want to reuse at conf.d files
-│   ├── certbot.conf         # Serves Let's encrypt .well-known files
+├── snippets                     # Config we want to reuse at conf.d files
+│   ├── certbot-webroot.conf     # Serves Let's encrypt .well-known files
+│   ├── certbot-standalone.conf  # as alternative method
 │   ├── proxy.conf           
 │   ├── ssl.conf             
 
@@ -34,11 +37,22 @@ docker exec nginx-proxy nginx -s reload
 ## Let's Encrypt SSL Certificates
 
 ### Reqeust a new Certificate
-```
-docker-compose run --rm certbot certonly \
-  --agree-tos --no-eff-email --hsts --webroot -w /var/www \
-  --cert-name=example.com -m mail@example.com -d example.com
-```
+1. Add the following line to your nginx site.conf
+
+   ```
+   server {
+     ...
+     include /etc/nginx/snippets/certbot-webroot.conf;
+   }
+   ```
+   
+2. Request the certificate using this command
+
+   ```
+   docker-compose run --rm certbot certonly \
+     --agree-tos --no-eff-email --hsts --webroot -w /var/www \
+     --cert-name=example.com -m mail@example.com -d example.com
+   ```
 
 ### List existing Certificates
 ```shell
