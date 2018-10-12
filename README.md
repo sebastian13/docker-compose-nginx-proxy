@@ -53,6 +53,18 @@ Replace *example.com* with your domain, and set your *$upstream container*.
 docker-compose up -d
 ```
 
+## Update
+
+To get the most recent version of this repo run:
+
+```
+git fetch --all && \
+git reset --hard origin/master && \
+docker-compose pull && \
+docker-compose down && \
+docker-compose up -d
+```
+
 ## Nginx
 
 I'm using the [official nginx container](https://hub.docker.com/_/nginx/) here. All volumes will be mounted read-only.
@@ -66,7 +78,7 @@ docker exec nginx-proxy nginx -s reload
 
 ## Let's Encrypt SSL Certificates
 
-### Reqeust a new Certificate
+### Request a new Certificate
 
 ```
 docker-compose run --rm certbot certonly \
