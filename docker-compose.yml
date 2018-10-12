@@ -37,24 +37,7 @@ services:
             "renew",
           ]
 
-  # The "reloader" will renew certbot's certificates if needed,
-  # and reloads the nginx' configuration afterwards.
-  reload:
-    image: docker
-    container_name: nginx-proxy-reloader
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    command: >
-           sh -c "
-                  docker start certbot;
-                  sleep 60s;
-                  docker exec nginx-proxy nginx -t;
-                  docker exec nginx-proxy nginx -s reload
-                  "
-    labels:
-      cron.schedule: "@weekly"  
-
-# Use an existing network
+# Use the same external network in $upstream containers.
 networks:
   proxy-tier:
     external:
