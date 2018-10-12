@@ -23,6 +23,36 @@ The container will use the network **www-network** as a proxy-tier. Add every co
 
 ```
 
+## How To Use
+
+### 1. Clone this repo
+
+```bash
+mkdir -p /docker/00-nginx-proxy
+cd /docker/00-nginx-proxy
+git clone https://github.com/sebastian13/docker-compose-nginx-proxy.git .
+```
+
+### 2. Prepare for SSL
+```bash
+mkdir -p ./ssl/test
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+	-keyout ./ssl/test/selfsigned.key \
+	-out ./ssl/test/selfsigned.crt
+openssl dhparam -out ssl/dhparams2048.pem 2048
+```
+
+### 3. Create your site's config
+```bash
+cp conf.d/{example.com,yoursite.com.conf}
+```
+Replace *example.com* with your domain, and set your *$upstream container*.
+
+### 4. Ready to go
+```bash
+docker-compose up -d
+```
+
 ## Nginx
 
 I'm using the [official nginx container](https://hub.docker.com/_/nginx/) here. All volumes will be mounted read-only.
@@ -37,22 +67,15 @@ docker exec nginx-proxy nginx -s reload
 ## Let's Encrypt SSL Certificates
 
 ### Reqeust a new Certificate
-1. Add the following line to your nginx site.conf
 
-   ```
-   server {
-     ...
-     include /etc/nginx/snippets/certbot-webroot.conf;
-   }
-   ```
-   
-2. Request the certificate using this command
+```
+docker-compose run --rm certbot certonly \
+ --agree-tos --no-eff-email --hsts --webroot -w /var/www \
+ --cert-name=example.com -m mail@example.com -d example.com
+```
 
-   ```
-   docker-compose run --rm certbot certonly \
-     --agree-tos --no-eff-email --hsts --webroot -w /var/www \
-     --cert-name=example.com -m mail@example.com -d example.com
-   ```
+Then, link the certificate in your nginx site.conf + reload the nginx-proxy.
+
 
 ### List existing Certificates
 ```shell
@@ -65,9 +88,14 @@ docker-compose run --rm certbot delete --cert-name example.com
 ```
 
 ### Renew Certificates
-To renew certificates automatically start the [docker crontab container](https://github.com/sebastian13/docker-compose-crontab) separately. Then start the nginx-proxy via `docker-compose up -d` and it will check your certificates every Moday for renewal.
 
-To manually check your certificates for renewal do `docker-compose up certbot`
+Define a Cronjob like this, to renew the certificates periodically.
+
+```
+0 0 * * SAT docker-compose -f /docker/00-nginx-proxy/docker-compose.yml up certbot && docker exec nginx-proxy nginx -s reload
+```
+
+To manually check your certificates for renewal run `docker-compose up certbot`.
 
 
 ## Get A+ SSL Rating
