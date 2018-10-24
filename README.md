@@ -89,7 +89,7 @@ You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) 
 2. Start the container the following way:
 
  ```
- docker-compose -f nginx-amplify.yml -up -d --build
+ docker-compose -f nginx-amplify.yml up -d --build
  ```
 
 ## Let's Encrypt SSL Certificates
