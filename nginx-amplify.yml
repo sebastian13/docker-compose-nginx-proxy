@@ -1,0 +1,48 @@
+### NGINX-PROXY with Amplify Agent
+###
+### Author: Sebastian Plocek
+### https://github.com/sebastian13/docker-compose-nginx-proxy
+
+version: '3'
+
+services:
+  nginx-proxy:
+    image: nginx-amplify
+    build:
+      context: https://github.com/nginxinc/docker-nginx-amplify.git
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./www:/var/www:ro
+      - ./conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./snippets:/etc/nginx/snippets:ro
+      - ./protect:/etc/nginx/protect:ro
+    networks:
+      - proxy-tier
+    env_file:
+      - ./amplify.env
+        
+  # Let's Encrypt / Certbot
+  # Check README.md to know how to issue new certs.
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - ./ssl:/etc/letsencrypt
+      - ./ssl-log:/var/log/letsencrypt
+      - ./www/.well-known:/var/www/.well-known
+    command: [
+            "renew",
+          ]
+
+# Use the same external network in $upstream containers.
+networks:
+  proxy-tier:
+    external:
+      name: www-network

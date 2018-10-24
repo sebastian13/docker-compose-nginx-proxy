@@ -76,6 +76,22 @@ As you change site-specific configuration in *conf.d*, you should consider reloa
 docker exec nginx-proxy nginx -s reload
 ```
 
+### Amplify Agent
+You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) the following way:
+
+1. Create a **amplify.env** containing
+
+ ```
+ AMPLIFY_IMAGENAME=example.com
+ API_KEY=123456
+ ```
+
+2. Start the container the following way:
+
+ ```
+ docker-compose -f nginx-amplify.yml -up -d --build
+ ```
+
 ## Let's Encrypt SSL Certificates
 
 ### Request a new Certificate
