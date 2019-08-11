@@ -99,7 +99,8 @@ You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) 
 ```
 docker-compose run --rm certbot certonly \
  --agree-tos --no-eff-email --hsts --webroot -w /var/www \
- --cert-name=example.com -m mail@example.com -d example.com
+ --rsa-key-size 4096 --cert-name=example.com \
+ -m mail@example.com -d example.com
 ```
 
 Then, link the certificate in your nginx site.conf + reload the nginx-proxy.
@@ -130,7 +131,7 @@ To manually check your certificates for renewal run `docker-compose up certbot`.
 
 1. Generate your own Diffie-Hellman parameters. Put it inside the directory **ssl**.
 
- `openssl dhparam -out ssl/dhparams2048.pem 2048`
+ `openssl dhparam -out ssl/dhparams4096.pem 4096`
 
 2. Include the **ssl.conf snippet** at your site specific configuration. Also, include the **ssl\_trusted\_certificate**.
 
