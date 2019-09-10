@@ -36,10 +36,12 @@ git clone https://github.com/sebastian13/docker-compose-nginx-proxy.git .
 ### 2. Prepare for SSL
 ```bash
 mkdir -p ./ssl/test
-openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
 	-keyout ./ssl/test/selfsigned.key \
 	-out ./ssl/test/selfsigned.crt
-openssl dhparam -out ssl/dhparams2048.pem 2048
+# Optional, run in a separate session
+screen
+openssl dhparam -out ssl/dhparams4096.pem 4096
 ```
 
 ### 3. Create your site's config
