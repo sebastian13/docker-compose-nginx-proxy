@@ -26,9 +26,13 @@ server {
   include /etc/nginx/snippets/certbot-webroot.conf;
 
   location / {
+    # Optional IP based restriction
+    # allow 1.2.3.4;
+    # deny all;
+
     # Optional Password protection
     # auth_basic "Restricted Content";
-    # auth_basic_user_file /etc/nginx/external/.htpasswd;
+    # auth_basic_user_file /etc/nginx/protect/.htpasswd;
 
     # Upstream
     resolver 127.0.0.11 valid=30s;

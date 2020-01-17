@@ -145,20 +145,37 @@ To manually check your certificates for renewal run `docker-compose up certbot`.
   		...
  }
  ```
+ 
+## IP based protection
+
+Add your IP Address to the domain's .conf file, and deny everyone else.
+
+```
+server {
+  ...
+  location / {
+    allow 1.2.3.4;
+    deny all;
+  } 
+} 
+```
 
 ## Password protection
 Protect your site with http authentication.
 
 ```
-sudo apt-get update
-sudo apt-get install apache2-utils
-```
+# Log into the container
+docker-compose exec nginx-proxy bash
 
-Run this command. You will be asked to supply and confirm a password for the user.
+# Install apache2-utils
+apt update
+apt install apache2-utils
 
-```bash
-sudo htpasswd -c /etc/nginx/protect/.htpasswd first_user
-sudo htpasswd /etc/nginx/protect/.htpasswd another_user
+# For every user run the following.
+# You will be asked to supply and confirm a password.
+
+htpasswd -c /etc/nginx/protect/.htpasswd first_user
+htpasswd /etc/nginx/protect/.htpasswd another_user
 ```
 
 ```
