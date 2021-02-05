@@ -1,7 +1,8 @@
 ### NGINX-PROXY
+### Works in Swarm Mode
 ###
 ### Author: Sebastian Plocek
-### https://github.com/sebastian13/docker-compose-nginx-proxy
+### https://github.com/sebastian13/docker-compose-nginx-proxy/tree/docker-swarm
 
 version: '3.9'
 
