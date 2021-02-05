@@ -50,7 +50,12 @@ cp conf.d/{example.com,yoursite.com.conf}
 ```
 Replace *example.com* with your domain, and set your *$upstream container*.
 
-### 4. Ready to go
+### 4. Enable recommended http settings
+```bash
+cp conf.d/custon-nginx{,.conf}
+```
+
+### 5. Ready to go
 ```bash
 docker-compose up -d
 ```
