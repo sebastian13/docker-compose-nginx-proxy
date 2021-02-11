@@ -19,4 +19,4 @@ docker run -it --rm \
 
 scriptPath="$(dirname "$0")"
 source $scriptPath/nginx-test.sh
-source $scriptPath/nginx-update
+source $scriptPath/nginx-update.sh
