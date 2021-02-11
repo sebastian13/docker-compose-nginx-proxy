@@ -29,8 +29,14 @@ services:
       replicas: 2
       placement:
         max_replicas_per_node: 1
+      update_config:
+        parallelism: 1
+        delay: 30s
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 30s
+        max_attempts: 120
+        window: 30s
       endpoint_mode: dnsrr
 
 networks:
