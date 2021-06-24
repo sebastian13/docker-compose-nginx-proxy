@@ -52,10 +52,15 @@ Replace *example.com* with your domain, and set your *$upstream container*.
 
 ### 4. Enable recommended http settings
 ```bash
-cp conf.d/custon-nginx{,.conf}
+cp conf.d/custom-nginx{,.conf}
 ```
 
-### 5. Ready to go
+### 5. Create docker network www-network
+```bash
+docker network create www-network
+```
+
+### 6. Ready to go
 ```bash
 docker-compose up -d
 ```
