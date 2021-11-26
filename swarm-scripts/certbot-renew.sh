@@ -6,7 +6,7 @@ set -e
 # and restarts the nginx proxy service on all nodes
 #
 
-docker run -it --rm \
+docker run --rm \
 	--name="certbot" \
 	--network="www-network" \
 	-v /docker/00-nginx-proxy/ssl:/etc/letsencrypt \
