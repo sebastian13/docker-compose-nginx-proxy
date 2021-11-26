@@ -2,9 +2,19 @@
 
 This docker-compose.yml users the **official nginx** and the **official certbot** container. It has optimized nginx configuration to be used as a https proxy together with certbot. Following my instructions you should get an <span style="color:green; font-weight:bold;">A+ rating</span> at [ssllabs.com](https://www.ssllabs.com/ssltest).
 
-
-
 The container will use the network **www-network** as a proxy-tier. Add every container to this network that servers as a upstream http host.
+
+### Table of Contents
+**[How To Use](#how-to-use)**<br>
+**[Docker Swarm](#docker-swarm)**<br>
+**[Update](#update)**<br>
+**[Nginx](#nginx)**<br>
+**[Let's Encrypt SSL Certificates](#let-s-encrypt-ssl-certificates)**<br>
+**[Let's Encrypt SSL Certificates on Swarm Mode](#let-s-encrypt-ssl-certificates-on-swarm-mode)**<br>
+**[Get A+ SSL Rating](#get-a--ssl-rating)**<br>
+**[Password protection](#password-protection)**<br>
+**[IP-based protection](#ip-based-protection)**<br>
+**[GeoIP blocking](#geoip-blocking)**<br>
 
 ## Directory structure
 
@@ -133,6 +143,8 @@ You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) 
 
 ## Let's Encrypt SSL Certificates
 
+*If using docker swarm, jump to [Let's Encrypt SSL Certificates on Swarm Mode](#let-s-encrypt-ssl-certificates-on-swarm-mode)*
+
 ### Request a new Certificate
 
 ```
@@ -165,6 +177,35 @@ Define a Cronjob like this, to renew the certificates periodically. Use chronic 
 
 To manually check your certificates for renewal run `docker-compose up certbot`.
 
+## Let's Encrypt SSL Certificates on Swarm Mode
+
+### Request a new Certificate
+
+```
+./swarm-scripts/certbot-certonly.sh -m mail@example.com -d example.com -d www.example.co
+```
+
+### List existing Certificates
+```shell
+./swarm-scripts/certbot.sh certificates
+```
+
+### Delete existing Certificates
+```shell
+./swarm-scripts/certbot.sh delete --cert-name example.com
+```
+
+### Renew Certificates
+
+```shell
+./swarm-scripts/certbot-renew.sh
+```
+
+Define a Cronjob like this, to renew the certificates periodically. Use chronic from [moreutils](https://manpages.debian.org/jessie/moreutils/chronic.1.en.html) if you like.
+
+```
+0 0 * * * chronic /docker/00-nginx-proxy/swarm-scripts/certbot-renew.sh
+```
 
 ## Get A+ SSL Rating
 
@@ -182,7 +223,36 @@ To manually check your certificates for renewal run `docker-compose up certbot`.
   		...
  }
  ```
- 
+
+## Password protection
+
+To protect your site with basic http authentication, create a .htpasswd file, spin up an apache container by running the following.
+
+```bash
+docker run -i --rm -v /docker/00-nginx-proxy/protect:/etc/nginx/protect httpd /bin/bash
+```
+
+For every user run the following. You will be asked to supply and confirm a password.
+
+```bash
+htpasswd -c /etc/nginx/protect/.htpasswd first_user
+htpasswd /etc/nginx/protect/.htpasswd another_user
+```
+
+In the site's .conf file add the following.
+
+```
+server {
+  ...
+  location / {
+    auth_basic "Restricted Content";
+    auth_basic_user_file /etc/nginx/protect/.htpasswd;
+  } 
+} 
+```
+
+You can find detailed instructions at [digitalocean](https://www.digitalocean.com/community/tutorials/how-to-set-up-password-authentication-with-nginx-on-ubuntu-14-04)
+
 ## IP based protection
 
 Add your IP Address to the domain's .conf file, and deny everyone else.
@@ -213,33 +283,3 @@ add to nginx.conf after pid ... :
 load_module modules/ngx_http_geoip_module.so;
 ```
 
-
-
-## Password protection
-
-To protect your site with basic http authentication, create a .htpasswd file, spin up an apache container by running the following.
-
-```bash
-docker run -i --rm -v /docker/00-nginx-proxy/protect:/etc/nginx/protect httpd /bin/bash
-```
-
-For every user run the following. You will be asked to supply and confirm a password.
-
-```bash
-htpasswd -c /etc/nginx/protect/.htpasswd first_user
-htpasswd /etc/nginx/protect/.htpasswd another_user
-```
-
-In the site's .conf file add the following.
-
-```
-server {
-  ...
-  location / {
-    auth_basic "Restricted Content";
-    auth_basic_user_file /etc/nginx/protect/.htpasswd;
-  } 
-} 
-```
-
-You can find detailed instructions at [digitalocean](https://www.digitalocean.com/community/tutorials/how-to-set-up-password-authentication-with-nginx-on-ubuntu-14-04)
