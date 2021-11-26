@@ -11,6 +11,15 @@ set -e
 # to list existing certificates
 #
 
+# If no argument is passed, display help
+if [ $# -eq 0 ]
+then
+	echo "Run an arbitrary certbot command, e.g.:"
+	echo " > ./certbot.sh help               ... to display help"
+	echo " > ./certbot.sh certificates       ... to list certificates"
+	exit
+fi
+
 docker run -it --rm \
 	--name="certbot" \
 	--network="proxystack_attachable" \

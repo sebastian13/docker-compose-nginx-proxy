@@ -2,15 +2,13 @@
 set -e
 
 #
-# Renew existing certificates, test the nginx configuration
-# and restart the service on all nodes
-#
-# Use ./certbot-certonly.sh to request new certificates
+# Renews existing certificates, tests the nginx configuration
+# and restarts the nginx proxy service on all nodes
 #
 
 docker run -it --rm \
 	--name="certbot" \
-	--network="proxystack_attachable" \
+	--network="www-network" \
 	-v /docker/00-nginx-proxy/ssl:/etc/letsencrypt \
 	-v /docker/00-nginx-proxy/ssl-log:/var/log/letsencrypt \
  	certbot/certbot renew

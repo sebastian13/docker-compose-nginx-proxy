@@ -65,6 +65,33 @@ docker network create www-network
 docker-compose up -d
 ```
 
+## Docker Swarm
+
+To run this project on a docker stack, skip 5. and 6. and continue here:
+
+### 0. Network
+If you previously used the `www-network`, stop all containers and remove the network. The stack will recreate the network in swarm scope.
+
+```bash
+docker stop $(docker ps -q)
+docker network remove www-network
+```
+
+### 1. Create Swarm
+```bash
+docker swarm init
+```
+
+### 2. Deploy Stack
+```bash
+docker stack deploy proxystack -c swarm.yml
+
+# Alternatively, run the helper script
+cd swarm-scripts
+./stack-deploy.sh
+```
+
+
 ## Update
 
 To get the most recent version of this repo run:

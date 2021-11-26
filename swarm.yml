@@ -41,6 +41,7 @@ services:
 
 networks:
   attachable:
+    name: www-network
     driver: overlay
     attachable: true
     driver_opts:

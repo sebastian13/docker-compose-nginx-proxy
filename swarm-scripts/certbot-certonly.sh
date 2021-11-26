@@ -2,15 +2,21 @@
 set -e
 
 #
-# Request a new certificate by running
+# This helper requests a new certificate by running
 # ./certbot-certonly.sh -m mail@example.com -d example.com -d www.example.com
 #
-# Use ./certbot-renew.sh to renew existing certificates
-#
+
+# If no argument is passed, display help
+if [ $# -eq 0 ]
+then
+	echo "To request a new certificate run:"
+	echo "./certbot-certonly.sh -m mail@example.com -d example.com -d www.example.co"
+	exit
+fi
 
 docker run -it --rm \
 	--name="certbot" \
-	--network="proxystack_attachable" \
+	--network="www-network" \
 	-v /docker/00-nginx-proxy/ssl:/etc/letsencrypt \
 	-v /docker/00-nginx-proxy/ssl-log:/var/log/letsencrypt \
  	certbot/certbot certonly --standalone \
