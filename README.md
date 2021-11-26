@@ -216,22 +216,21 @@ load_module modules/ngx_http_geoip_module.so;
 
 
 ## Password protection
-Protect your site with http authentication.
 
+To protect your site with basic http authentication, create a .htpasswd file, spin up an apache container by running the following.
+
+```bash
+docker run -i --rm -v /docker/00-nginx-proxy/protect:/etc/nginx/protect httpd /bin/bash
 ```
-# Log into the container
-docker-compose exec nginx-proxy bash
 
-# Install apache2-utils
-apt update
-apt install apache2-utils
+For every user run the following. You will be asked to supply and confirm a password.
 
-# For every user run the following.
-# You will be asked to supply and confirm a password.
-
+```bash
 htpasswd -c /etc/nginx/protect/.htpasswd first_user
 htpasswd /etc/nginx/protect/.htpasswd another_user
 ```
+
+In the site's .conf file add the following.
 
 ```
 server {

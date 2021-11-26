@@ -6,3 +6,10 @@ ssl
 !ssl/cli.ini
 ssl-log
 www
+geoip
+protect
+snippets/*
+!snippets/certbot-standalone.conf
+!snippets/certbot-webroot.conf
+!snippets/proxy.conf
+!snippets/ssl.conf
