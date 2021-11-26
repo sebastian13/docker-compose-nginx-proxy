@@ -9,9 +9,9 @@ The container will use the network **www-network** as a proxy-tier. Add every co
 **[Docker Swarm](#docker-swarm)**<br>
 **[Update](#update)**<br>
 **[Nginx](#nginx)**<br>
-**[Let's Encrypt SSL Certificates](#let-s-encrypt-ssl-certificates)**<br>
-**[Let's Encrypt SSL Certificates on Swarm Mode](#let-s-encrypt-ssl-certificates-on-swarm-mode)**<br>
-**[Get A+ SSL Rating](#get-a--ssl-rating)**<br>
+**[Let's Encrypt SSL Certificates](#lets-encrypt-ssl-certificates)**<br>
+**[Let's Encrypt SSL Certificates on Swarm Mode](#lets-encrypt-ssl-certificates-on-swarm-mode)**<br>
+**[Get A+ SSL Rating](#get-a-ssl-rating)**<br>
 **[Password protection](#password-protection)**<br>
 **[IP-based protection](#ip-based-protection)**<br>
 **[GeoIP blocking](#geoip-blocking)**<br>
@@ -143,7 +143,7 @@ You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) 
 
 ## Let's Encrypt SSL Certificates
 
-*If using docker swarm, jump to [Let's Encrypt SSL Certificates on Swarm Mode](#let-s-encrypt-ssl-certificates-on-swarm-mode)*
+*If using docker swarm, jump to [Let's Encrypt SSL Certificates on Swarm Mode](#lets-encrypt-ssl-certificates-on-swarm-mode)*
 
 ### Request a new Certificate
 
