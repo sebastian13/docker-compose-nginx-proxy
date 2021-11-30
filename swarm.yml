@@ -25,10 +25,7 @@ services:
     networks:
       - attachable
     deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 1
+      mode: global
       update_config:
         parallelism: 1
         delay: 30s
