@@ -11,8 +11,8 @@ docker run --rm \
 	--network="www-network" \
 	-v /docker/00-nginx-proxy/ssl:/etc/letsencrypt \
 	-v /docker/00-nginx-proxy/ssl-log:/var/log/letsencrypt \
- 	certbot/certbot renew
+ 	certbot/certbot renew \
+ 	--standalone
 
 scriptPath="$(dirname "$0")"
-source $scriptPath/nginx-test.sh
 source $scriptPath/nginx-update.sh

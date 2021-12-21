@@ -3,7 +3,7 @@ server {
   listen [::]:80;
   server_name example.com;
 
-  include /etc/nginx/snippets/certbot-webroot.conf;
+  include /etc/nginx/snippets/certbot-standalone.conf;
 
   # Discourage deep links by using a permanent redirect to home page of HTTPS site
   # return 301 https://$host;
@@ -23,7 +23,7 @@ server {
 #  ssl_trusted_certificate /etc/nginx/ssl/live/example.com/chain.pem;
 
   include /etc/nginx/snippets/ssl.conf;
-  include /etc/nginx/snippets/certbot-webroot.conf;
+  include /etc/nginx/snippets/certbot-standalone.conf;
 
   location / {
     # Optional IP based restriction

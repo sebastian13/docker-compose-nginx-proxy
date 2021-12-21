@@ -22,7 +22,7 @@ fi
 
 docker run -it --rm \
 	--name="certbot" \
-	--network="proxystack_attachable" \
+	--network="www-network" \
 	-v /docker/00-nginx-proxy/ssl:/etc/letsencrypt \
 	-v /docker/00-nginx-proxy/ssl-log:/var/log/letsencrypt \
  	certbot/certbot $@
