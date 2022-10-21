@@ -172,7 +172,7 @@ docker-compose run --rm certbot delete --cert-name example.com
 Define a Cronjob like this, to renew the certificates periodically. Use chronic from [moreutils](https://manpages.debian.org/jessie/moreutils/chronic.1.en.html) if you like.
 
 ```
-0 0 * * * chronic docker-compose -f /docker/00-nginx-proxy/docker-compose.yml up certbot && chronic docker exec nginx-proxy nginx -s reload
+0 0 * * * cd /docker/00-nginx-proxy && chronic docker-compose run --rm --use-aliases certbot renew && chronic docker exec nginx-proxy nginx -s reload
 ```
 
 To manually check your certificates for renewal run `docker-compose up certbot`.

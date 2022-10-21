@@ -19,8 +19,6 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
       - ./snippets:/etc/nginx/snippets:ro
       - ./protect:/etc/nginx/protect:ro
-    networks:
-      - proxy-tier
 
   # Let's Encrypt / Certbot
   # Check README.md to know how to issue new certs.
@@ -33,12 +31,14 @@ services:
       - ./ssl:/etc/letsencrypt
       - ./ssl-log:/var/log/letsencrypt
       - ./www/.well-known:/var/www/.well-known
+    profiles:
+      - certbot
     command: [
             "renew",
           ]
 
 # Use the same external network in $upstream containers.
 networks:
-  proxy-tier:
+  default:
     external:
       name: www-network
