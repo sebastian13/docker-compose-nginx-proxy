@@ -40,5 +40,5 @@ services:
 # Use the same external network in $upstream containers.
 networks:
   default:
-    external:
-      name: www-network
+    name: www-network
+    external: true
