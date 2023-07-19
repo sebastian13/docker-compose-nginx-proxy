@@ -16,7 +16,8 @@ server {
 
 server {
   server_name example.com;
-  listen 443 ssl http2 ;
+  listen 443 ssl;
+  http2 on;
 
 #  ssl_certificate /etc/nginx/ssl/live/example.com/fullchain.pem;
 #  ssl_certificate_key /etc/nginx/ssl/live/example.com/privkey.pem;
