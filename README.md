@@ -72,7 +72,7 @@ docker network create www-network
 
 ### 6. Ready to go
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Docker Swarm
@@ -109,9 +109,9 @@ To get the most recent version of this repo run:
 ```
 git fetch --all && \
 git reset --hard origin/master && \
-docker-compose pull && \
-docker-compose down && \
-docker-compose up -d
+docker compose pull && \
+docker compose down && \
+docker compose up -d
 ```
 
 ## Nginx
@@ -138,7 +138,7 @@ You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) 
 2. Start the container the following way:
 
  ```
- docker-compose -f nginx-amplify.yml up -d --build
+ docker compose -f nginx-amplify.yml up -d --build
  ```
 
 ## Let's Encrypt SSL Certificates
@@ -148,7 +148,7 @@ You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) 
 ### Request a new Certificate
 
 ```
-docker-compose run --rm certbot certonly \
+docker compose run --rm certbot certonly \
  --agree-tos --no-eff-email --hsts --webroot -w /var/www \
  --rsa-key-size 4096 --cert-name=example.com \
  -m mail@example.com -d example.com
@@ -159,12 +159,12 @@ Then, link the certificate in your nginx site.conf + reload the nginx-proxy.
 
 ### List existing Certificates
 ```shell
-docker-compose run --rm certbot certificates
+docker compose run --rm certbot certificates
 ```
 
 ### Delete existing Certificates
 ```shell
-docker-compose run --rm certbot delete --cert-name example.com
+docker compose run --rm certbot delete --cert-name example.com
 ```
 
 ### Renew Certificates
@@ -172,10 +172,10 @@ docker-compose run --rm certbot delete --cert-name example.com
 Define a Cronjob like this, to renew the certificates periodically. Use chronic from [moreutils](https://manpages.debian.org/jessie/moreutils/chronic.1.en.html) if you like.
 
 ```
-0 0 * * * cd /docker/00-nginx-proxy && chronic docker-compose run --rm --use-aliases certbot renew && chronic docker exec nginx-proxy nginx -s reload
+0 0 * * * cd /docker/00-nginx-proxy && chronic docker compose run --rm --use-aliases certbot renew && chronic docker exec nginx-proxy nginx -s reload
 ```
 
-To manually check your certificates for renewal run `docker-compose up certbot`.
+To manually check your certificates for renewal run `docker compose up certbot`.
 
 ## Let's Encrypt SSL Certificates on Swarm Mode
 
