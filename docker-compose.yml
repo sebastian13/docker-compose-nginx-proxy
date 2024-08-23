@@ -3,8 +3,6 @@
 ### Author: Sebastian Plocek
 ### https://github.com/sebastian13/docker-compose-nginx-proxy
 
-version: '3'
-
 services:
   nginx-proxy:
     image: nginx
