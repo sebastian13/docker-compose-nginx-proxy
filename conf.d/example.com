@@ -3,7 +3,8 @@ server {
   listen [::]:80;
   server_name example.com;
 
-  include /etc/nginx/snippets/certbot-standalone.conf;
+  # Serve Let's Ecnrypt verification files
+  include snippets/certbot-standalone.conf;
 
   # Discourage deep links by using a permanent redirect to home page of HTTPS site
   # return 301 https://$host;
@@ -19,12 +20,15 @@ server {
   listen 443 ssl;
   http2 on;
 
-#  ssl_certificate /etc/nginx/ssl/live/example.com/fullchain.pem;
-#  ssl_certificate_key /etc/nginx/ssl/live/example.com/privkey.pem;
-#  ssl_trusted_certificate /etc/nginx/ssl/live/example.com/chain.pem;
+#  ssl_certificate         ssl/live/example.com/fullchain.pem;
+#  ssl_certificate_key     ssl/live/example.com/privkey.pem;
+#  ssl_trusted_certificate ssl/live/example.com/chain.pem;
 
-  include /etc/nginx/snippets/ssl.conf;
-  include /etc/nginx/snippets/certbot-standalone.conf;
+  # Serve Let's Ecnrypt verification files
+  include snippets/certbot-standalone.conf;
+
+  # Set default SSL parameters
+  include snippets/ssl.conf;
 
   location / {
     # Optional IP based restriction
@@ -40,7 +44,7 @@ server {
     set $upstream container_name;
     proxy_pass http://$upstream;
 
-    include /etc/nginx/snippets/proxy.conf;
+    include snippets/proxy.conf;
 
   }
 }
