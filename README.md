@@ -126,16 +126,30 @@ docker exec nginx-proxy nginx -s reload
 ```
 
 ### Amplify Agent
-You can use the free monitoring tool [NGINX Amplify](https://amplify.nginx.com) the following way:
+
+> **⚠️ Note:** The original NGINX Amplify service was [discontinued on January 31, 2026](https://blog.nginx.org/blog/nginx-amplify-endoflife).
+>
+> **Alternative:** [GetPageSpeed Amplify](https://amplify.getpagespeed.com/) is a drop-in replacement that works with the same `nginx-amplify-agent`. It includes Gixy security checks and has a free tier.
+>
+> Migration guide: https://www.getpagespeed.com/server-setup/nginx/nginx-amplify-alternative
+
+You can use [GetPageSpeed Amplify](https://amplify.getpagespeed.com/) for NGINX monitoring the following way:
 
 1. Create a **amplify.env** containing
 
  ```
  AMPLIFY_IMAGENAME=example.com
- API_KEY=123456
+ API_KEY=your-api-key-from-getpagespeed-amplify
  ```
 
-2. Start the container the following way:
+2. Update the agent config to use the GetPageSpeed API:
+
+ ```ini
+ [cloud]
+ api_url = https://amplify.getpagespeed.com/1.4
+ ```
+
+3. Start the container the following way:
 
  ```
  docker compose -f nginx-amplify.yml up -d --build
@@ -282,4 +296,3 @@ add to nginx.conf after pid ... :
 ```
 load_module modules/ngx_http_geoip_module.so;
 ```
-
