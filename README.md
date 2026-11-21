@@ -14,7 +14,6 @@ The container will use the network **www-network** as a proxy-tier. Add every co
 **[Get A+ SSL Rating](#get-a-ssl-rating)**<br>
 **[Password protection](#password-protection)**<br>
 **[IP-based protection](#ip-based-protection)**<br>
-**[GeoIP blocking](#geoip-blocking)**<br>
 
 ## Directory structure
 
@@ -249,20 +248,3 @@ server {
   } 
 } 
 ```
-
-## GeoIP blocking
-
-```
-mkdir geoip
-cd geoip
-curl -O https://centminmod.com/centminmodparts/geoip-legacy/GeoIP.dat.gz
-curl -o GeoLiteCity.dat.gz https://centminmod.com/centminmodparts/geoip-legacy/GeoLiteCity.gz
-gunzip *.gz
-```
-
-add to nginx.conf after pid ... :
-
-```
-load_module modules/ngx_http_geoip_module.so;
-```
-

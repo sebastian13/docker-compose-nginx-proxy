@@ -7,7 +7,6 @@ ssl
 !ssl/cli.ini
 ssl-log
 www
-geoip
 protect
 snippets/*
 !snippets/certbot-standalone.conf
