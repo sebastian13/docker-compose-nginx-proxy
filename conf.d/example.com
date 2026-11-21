@@ -3,7 +3,7 @@ server {
   listen [::]:80;
   server_name example.com;
 
-  # Serve Let's Ecnrypt verification files
+  # Serve Let's Encrypt verification files
   include snippets/certbot-standalone.conf;
 
   # Discourage deep links by using a permanent redirect to home page of HTTPS site
@@ -21,10 +21,15 @@ server {
   listen [::]:443 ssl;
   http2 on;
 
+  # HTTP/3 (reuseport is set once in default.conf)
+  listen 443 quic;
+  listen [::]:443 quic;
+  add_header Alt-Svc 'h3=":443"; ma=86400';
+
 #  ssl_certificate         ssl/live/example.com/fullchain.pem;
 #  ssl_certificate_key     ssl/live/example.com/privkey.pem;
 
-  # Serve Let's Ecnrypt verification files
+  # Serve Let's Encrypt verification files
   include snippets/certbot-standalone.conf;
 
   # Set default SSL parameters
