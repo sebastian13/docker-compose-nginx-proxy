@@ -1,0 +1,9 @@
+# Azure service tags for update-microsoft-ips.sh, one per line.
+# Copy to update-microsoft-ips.conf and keep only what this server needs.
+# All tags: https://learn.microsoft.com/azure/virtual-network/service-tags-overview
+#
+# Each tag generates snippets/allow-microsoft-<tag>-ipv4.conf and -ipv6.conf,
+# e.g. LogicApps.WestEurope -> allow-microsoft-logicapps-westeurope-ipv4.conf
+
+LogicApps.WestEurope
+PowerPlatformInfra.WestEurope
