@@ -13,4 +13,5 @@ snippets/*
 !snippets/certbot-standalone.conf
 !snippets/certbot-webroot.conf
 !snippets/proxy.conf
+!snippets/security-headers-strict.conf
 !snippets/ssl.conf

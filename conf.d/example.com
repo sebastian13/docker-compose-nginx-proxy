@@ -35,6 +35,9 @@ server {
   # Set default SSL parameters
   include snippets/ssl.conf;
 
+  # Optional stricter security headers, see the snippet before enabling
+  # include snippets/security-headers-strict.conf;
+
   location / {
     # Optional IP based restriction
     # allow 1.2.3.4;
