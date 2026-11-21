@@ -7,4 +7,4 @@
 #  > docker stack rm proxystack
 #
 
-docker stack deploy proxystack -c ../swarm.yml
+docker stack deploy proxystack -c "$(dirname "$0")/swarm.yml"
