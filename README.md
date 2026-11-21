@@ -197,12 +197,11 @@ Define a Cronjob like this, to renew the certificates periodically. Use chronic 
 
  `openssl dhparam -out ssl/dhparams4096.pem 4096`
 
-2. Include the **ssl.conf snippet** at your site specific configuration. Also, include the **ssl\_trusted\_certificate**.
+2. Include the **ssl.conf snippet** at your site specific configuration.
 
  ```
  server {
  		...
- 		ssl_trusted_certificate /etc/nginx/ssl/live/example.com/chain.pem;
   		include /etc/nginx/snippets/ssl.conf;
   		...
  }

@@ -18,11 +18,11 @@ server {
 server {
   server_name example.com;
   listen 443 ssl;
+  listen [::]:443 ssl;
   http2 on;
 
 #  ssl_certificate         ssl/live/example.com/fullchain.pem;
 #  ssl_certificate_key     ssl/live/example.com/privkey.pem;
-#  ssl_trusted_certificate ssl/live/example.com/chain.pem;
 
   # Serve Let's Ecnrypt verification files
   include snippets/certbot-standalone.conf;
@@ -46,5 +46,11 @@ server {
 
     include snippets/proxy.conf;
 
+    # Optional for large uploads (e.g. container registry, file sharing):
+    # stream the request body to the upstream instead of buffering it to disk
+    # client_max_body_size 0;
+    # proxy_request_buffering off;
+    # proxy_http_version 1.1;
+    # proxy_read_timeout 900;
   }
 }
