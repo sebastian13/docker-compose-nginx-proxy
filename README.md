@@ -110,6 +110,8 @@ docker exec nginx-proxy nginx -t && docker exec nginx-proxy nginx -s reload
 
 The sites include `snippets/certbot-standalone.conf`: nginx forwards `/.well-known/acme-challenge/` to the certbot container, which answers the challenge itself (`--standalone`). `--use-aliases` makes the container reachable as `certbot` in the `www-network`. This has proven to be the most reliable method.
 
+The challenge location allows everyone (`allow all; auth_basic off;`), so certificates can be issued and renewed for sites that restrict access with `allow`/`deny` or a password on the server level, also when a CDN like Cloudflare redirects the challenge to HTTPS.
+
 ### Request a new Certificate
 
 ```

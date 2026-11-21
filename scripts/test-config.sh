@@ -15,6 +15,8 @@
 #   2. Response headers at runtime, which nginx -t cannot show: a test location
 #      with its own add_header must still send the security headers from
 #      ssl.conf (add_header_inherit merge in conf.d/proxy-defaults.conf).
+#   3. The Let's Encrypt challenge stays reachable on a site that denies all
+#      other access on the server level (certbot-standalone.conf).
 #
 # What it does NOT check:
 #   - real certificates (paths, expiry): it uses dummy certificates
@@ -88,6 +90,23 @@ perl -pe '
   s|^  location / \{|  location /static/ { add_header Cache-Control "no-store"; return 204; }\n\n  location / {|;
 ' "$WORK/conf.d/example.com" > "$WORK/conf.d/zz-test-example.com.conf"
 
+# Test site that denies everyone on the server level, like sites restricted
+# to own IPs. The ACME challenge location must still be reachable.
+cat > "$WORK/conf.d/zz-test-acme.local.conf" <<'EOF'
+server {
+  listen 443 ssl;
+  server_name acme.local;
+  ssl_certificate     ssl/test/selfsigned.crt;
+  ssl_certificate_key ssl/test/selfsigned.key;
+  include snippets/ssl.conf;
+  include snippets/certbot-standalone.conf;
+  deny all;
+  # Serves the default nginx page. Not "return": it runs before the access
+  # check and would bypass deny all.
+  location / { root /usr/share/nginx/html; }
+}
+EOF
+
 VOLUMES=(
   -v "$WORK/conf.d:/etc/nginx/conf.d:ro"
   -v "$WORK/snippets:/etc/nginx/snippets:ro"
@@ -115,4 +134,15 @@ FAIL=0
 for H in strict-transport-security x-content-type-options content-security-policy cache-control alt-svc; do
   if echo "$HEADERS" | grep -qi "^$H:"; then echo "OK      $H"; else echo "MISSING $H"; FAIL=1; fi
 done
+
+# 3. ACME challenge on a site with "deny all" on the server level: must not
+#    be 403. No certbot container is running here, so 502 is expected.
+echo
+CODE=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "acme.local:$PORT:127.0.0.1" "https://acme.local:$PORT/.well-known/acme-challenge/test")
+ROOT=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "acme.local:$PORT:127.0.0.1" "https://acme.local:$PORT/")
+if [ "$CODE" != "403" ] && [ "$ROOT" = "403" ]; then
+  echo "OK      ACME challenge reachable despite deny all ($CODE, rest of the site $ROOT)"
+else
+  echo "FAIL    ACME challenge $CODE, rest of the site $ROOT (expected: not 403 / 403)"; FAIL=1
+fi
 exit $FAIL
