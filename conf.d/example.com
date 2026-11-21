@@ -44,13 +44,13 @@ server {
     set $upstream container_name;
     proxy_pass http://$upstream;
 
+    # Headers, HTTP/1.1 and WebSocket upgrade
     include snippets/proxy.conf;
 
     # Optional for large uploads (e.g. container registry, file sharing):
     # stream the request body to the upstream instead of buffering it to disk
     # client_max_body_size 0;
     # proxy_request_buffering off;
-    # proxy_http_version 1.1;
     # proxy_read_timeout 900;
   }
 }
