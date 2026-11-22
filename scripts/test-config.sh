@@ -17,6 +17,11 @@
 #      ssl.conf (add_header_inherit merge in conf.d/proxy-defaults.conf).
 #   3. The Let's Encrypt challenge stays reachable on a site that denies all
 #      other access on the server level (certbot-standalone.conf).
+#   4. conf.d/example-cloudflare.com: Authenticated Origin Pulls reject a
+#      client without certificate and accept one signed by the configured CA
+#      (a test CA here, as Cloudflare's private key is not available).
+#   5. snippets/cdn-only.conf: a request with the CDN's visitor IP header
+#      passes, a request without it (direct access) gets 403.
 #
 # What it does NOT check:
 #   - real certificates (paths, expiry): it uses dummy certificates
@@ -65,7 +70,7 @@ openssl dhparam -dsaparam -out "$WORK/ssl/dhparams4096.pem" 2048 2>/dev/null
 
 # The same dummy certificate for every certificate path the sites reference
 grep -hoE '^[[:space:]]*ssl_(certificate|certificate_key|trusted_certificate)[[:space:]]+[^;]+' \
-    "$WORK"/conf.d/*.conf "$WORK/conf.d/example.com" 2>/dev/null \
+    "$WORK"/conf.d/*.conf "$WORK/conf.d/example.com" "$WORK/conf.d/example-cloudflare.com" 2>/dev/null \
   | awk '{print $2}' | sed -E 's#^/etc/nginx/##' | grep '^ssl/' | sort -u \
   | while IFS= read -r REL; do
       [ -f "$WORK/$REL" ] && continue
@@ -80,6 +85,22 @@ cp "$WORK/ssl/test/selfsigned.crt" "$WORK/ssl/live/example.com/fullchain.pem"
 
 # A fresh clone has no custom-nginx.conf yet
 [ -f "$WORK/conf.d/custom-nginx.conf" ] || cp "$WORK/conf.d/custom-nginx" "$WORK/conf.d/custom-nginx.conf"
+
+# A fresh clone has no generated real-cloudflare.conf yet (update-cloudflare-ips.sh).
+# The stub trusts a documentation range only, so it changes nothing here.
+[ -f "$WORK/snippets/real-cloudflare.conf" ] || cat > "$WORK/snippets/real-cloudflare.conf" <<'EOF'
+real_ip_header CF-Connecting-IP;
+set_real_ip_from 192.0.2.0/24;
+EOF
+
+# Test CA in place of Cloudflare's Authenticated Origin Pull CA, and a client
+# certificate signed by it, which plays the role of Cloudflare in check 4
+openssl req -x509 -nodes -days 1 -newkey rsa:2048 -subj "/CN=Test Origin Pull CA" \
+  -keyout "$WORK/ca.key" -out "$WORK/ssl/authenticated_origin_pull_ca.pem" 2>/dev/null
+openssl req -nodes -newkey rsa:2048 -subj "/CN=origin-pull.test" \
+  -keyout "$WORK/client.key" -out "$WORK/client.csr" 2>/dev/null
+openssl x509 -req -days 1 -in "$WORK/client.csr" -CA "$WORK/ssl/authenticated_origin_pull_ca.pem" \
+  -CAkey "$WORK/ca.key" -CAcreateserial -out "$WORK/client.crt" 2>/dev/null
 
 # Test site from conf.d/example.com, enabled like a real site: certificates on,
 # optional strict headers on, plus a location /static/ with its own add_header
@@ -103,6 +124,27 @@ server {
   deny all;
   # Serves the default nginx page. Not "return": it runs before the access
   # check and would bypass deny all.
+  location / { root /usr/share/nginx/html; }
+}
+EOF
+
+# Test site from conf.d/example-cloudflare.com, under its own name
+perl -pe 's|server_name example.com;|server_name cloudflare.local;|' \
+  "$WORK/conf.d/example-cloudflare.com" > "$WORK/conf.d/zz-test-cloudflare.local.conf"
+
+# Test site for cdn-only.conf. The test client connects from the Docker
+# gateway, so every address is treated as a CDN address here.
+cat > "$WORK/conf.d/zz-test-cdn.local.conf" <<'EOF'
+server {
+  listen 443 ssl;
+  server_name cdn.local;
+  ssl_certificate     ssl/test/selfsigned.crt;
+  ssl_certificate_key ssl/test/selfsigned.key;
+  include snippets/ssl.conf;
+  real_ip_header X-Real-IP;
+  set_real_ip_from 0.0.0.0/0;
+  set_real_ip_from ::/0;
+  include snippets/cdn-only.conf;
   location / { root /usr/share/nginx/html; }
 }
 EOF
@@ -144,5 +186,28 @@ if [ "$CODE" != "403" ] && [ "$ROOT" = "403" ]; then
   echo "OK      ACME challenge reachable despite deny all ($CODE, rest of the site $ROOT)"
 else
   echo "FAIL    ACME challenge $CODE, rest of the site $ROOT (expected: not 403 / 403)"; FAIL=1
+fi
+
+# 4. Authenticated Origin Pulls: without client certificate nginx answers 400.
+#    With the certificate the request reaches the proxy_pass, which fails with
+#    502 because the upstream container does not exist here.
+NOCERT=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "cloudflare.local:$PORT:127.0.0.1" "https://cloudflare.local:$PORT/")
+WITHCERT=$(curl -sk -o /dev/null -w '%{http_code}' --cert "$WORK/client.crt" --key "$WORK/client.key" \
+  --resolve "cloudflare.local:$PORT:127.0.0.1" "https://cloudflare.local:$PORT/")
+if [ "$NOCERT" = "400" ] && [ "$WITHCERT" = "502" ]; then
+  echo "OK      Authenticated Origin Pulls (without client certificate $NOCERT, with $WITHCERT)"
+else
+  echo "FAIL    Authenticated Origin Pulls: without client certificate $NOCERT, with $WITHCERT (expected: 400 / 502)"; FAIL=1
+fi
+
+# 5. cdn-only.conf: with the visitor IP header the realip module replaces the
+#    address (request "through the CDN"), without it the address stays.
+VIACDN=$(curl -sk -o /dev/null -w '%{http_code}' -H 'X-Real-IP: 203.0.113.7' \
+  --resolve "cdn.local:$PORT:127.0.0.1" "https://cdn.local:$PORT/")
+DIRECT=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "cdn.local:$PORT:127.0.0.1" "https://cdn.local:$PORT/")
+if [ "$VIACDN" = "200" ] && [ "$DIRECT" = "403" ]; then
+  echo "OK      cdn-only.conf (through the CDN $VIACDN, direct $DIRECT)"
+else
+  echo "FAIL    cdn-only.conf: through the CDN $VIACDN, direct $DIRECT (expected: 200 / 403)"; FAIL=1
 fi
 exit $FAIL

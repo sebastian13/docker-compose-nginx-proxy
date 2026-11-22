@@ -15,6 +15,7 @@ The container will use the network **www-network** as a proxy-tier. Add every co
 **[HTTP/3](#http3)**<br>
 **[Large uploads](#large-uploads)**<br>
 **[IP allow lists for CDNs and Microsoft](#ip-allow-lists-for-cdns-and-microsoft)**<br>
+**[Cloudflare and other CDNs](#cloudflare-and-other-cdns)**<br>
 **[Test the configuration locally](#test-the-configuration-locally)**<br>
 **[Password protection](#password-protection)**<br>
 **[IP-based protection](#ip-based-protection)**<br>
@@ -29,12 +30,16 @@ The container will use the network **www-network** as a proxy-tier. Add every co
 │   ├── proxy-defaults.conf      # http-wide defaults of the template, do not edit
 │   ├── custom-nginx             # Recommended http settings, copy to custom-nginx.conf
 │   ├── example.com              # Template for a site, copy to <domain>.conf
+│   ├── example-cloudflare.com   # Template for a site behind Cloudflare (Origin CA, mTLS)
 ├── protect                      # HTTP Password Protection
 │   ├── .htpasswd
 ├── scripts                      # IP allow list updates, local config test
+├── ssl                          # Certificates (not in git, except cli.ini and the Cloudflare AOP CA)
 ├── snippets                     # Config we want to reuse at conf.d files
 │   ├── certbot-standalone.conf  # Forwards Let's Encrypt challenges to certbot (default)
 │   ├── certbot-webroot.conf     # Serves Let's Encrypt challenges from /var/www (alternative)
+│   ├── cloudflare-authenticated-origin-pull.conf  # Only Cloudflare may connect (mTLS)
+│   ├── cdn-only.conf            # Only requests through the CDN, for CDNs without mTLS
 │   ├── proxy.conf               # Proxy headers, HTTP/1.1, WebSockets
 │   ├── ssl.conf                 # TLS settings and security headers
 │   ├── security-headers-strict.conf  # Optional stricter headers
@@ -122,6 +127,8 @@ docker compose run --rm --use-aliases certbot certonly --standalone \
 ```
 
 Then, enable `ssl_certificate` and `ssl_certificate_key` in your site's .conf + reload the nginx-proxy. `ssl_trusted_certificate` is not needed.
+
+Sites behind Cloudflare use a Cloudflare Origin CA certificate instead, see [Cloudflare and other CDNs](#cloudflare-and-other-cdns).
 
 <details>
 <summary>Alternative: webroot</summary>
@@ -224,16 +231,7 @@ The scripts in `scripts/` download IP ranges and generate snippets. They only re
 
 The Azure service tags are server specific: copy `scripts/update-microsoft-ips.conf.example` to `scripts/update-microsoft-ips.conf` and list the tags you need.
 
-Example for a CDN site:
-
-```
-server {
-  ...
-  include snippets/real-cloudflare.conf;
-  include snippets/allow-cloudflare-ipv*.conf;
-  deny all;
-}
-```
+`real-<provider>.conf` and `allow-<provider>-ipv*.conf` exclude each other in the same server block: the realip module replaces the client address with the visitor IP before `allow`/`deny` is checked, so an allow list of CDN ranges would deny every visitor. To restore the visitor IP and accept only the CDN, see [Cloudflare and other CDNs](#cloudflare-and-other-cdns). The allow lists alone fit sites that do not need the visitor IP.
 
 Include only one `real-<provider>.conf` per server block. Run the scripts once before the first include, then daily, e.g. in `/etc/cron.d/nginx-proxy`:
 
@@ -243,12 +241,102 @@ Include only one `real-<provider>.conf` per server block. Run the scripts once b
 17 3 * * * root chronic /docker/00-nginx-proxy/scripts/update-microsoft-ips.sh
 ```
 
+## Cloudflare and other CDNs
+
+Default setup for a site behind Cloudflare, see `conf.d/example-cloudflare.com`:
+
+| | |
+|---|---|
+| Browser → Cloudflare | Cloudflare's edge certificate, HTTP/3, "Always Use HTTPS" |
+| Cloudflare → nginx | SSL/TLS mode **Full (strict)**, Cloudflare Origin CA certificate |
+| Only Cloudflare may connect | **Authenticated Origin Pulls** (mTLS), no IP allow list |
+| Visitor IP | `real-cloudflare.conf` restores it from `CF-Connecting-IP` |
+| nginx → upstream | `X-Real-IP` and `X-Forwarded-For` carry the visitor IP |
+
+### Origin CA certificate (Full strict)
+
+The Origin CA certificate is free, valid for up to 15 years and only trusted by Cloudflare. No certbot, no port 80, but the DNS records must stay proxied (orange cloud); a DNS-only record shows a certificate error in the browser.
+
+1. Cloudflare dashboard of the zone: SSL/TLS > Origin Server > **Create Certificate**. Keep the hostnames `example.com, *.example.com`, key type RSA, and choose the validity. Format **PEM**.
+2. Store the certificate and the private key on the server. Cloudflare shows the key only once.
+
+   ```bash
+   mkdir -p ssl/cloudflare/example.com && cd ssl/cloudflare/example.com
+   vi cert.pem       # paste "Origin Certificate"
+   vi privkey.pem    # paste "Private Key"
+   chmod 644 cert.pem && chmod 600 privkey.pem
+   openssl x509 -in cert.pem -noout -subject -enddate   # note the date in the site's .conf
+   ```
+
+   `ssl/cloudflare/` keeps these certificates apart from `ssl/live/`, which belongs to certbot.
+3. Copy `conf.d/example-cloudflare.com` to `conf.d/example.com.conf`, adjust `server_name`, the certificate paths and the upstream.
+4. Enable Authenticated Origin Pulls (next section), test and reload nginx.
+5. SSL/TLS > Overview: set the encryption mode to **Full (strict)**. SSL/TLS > Edge Certificates: enable **Always Use HTTPS**.
+
+`ssl_trusted_certificate` and Cloudflare's `origin_ca_rsa_root.pem` are not needed: nginx only uses them to verify OCSP responses, and OCSP stapling is not enabled. Cloudflare knows its own root anyway.
+
+### Authenticated Origin Pulls (mTLS)
+
+With [Authenticated Origin Pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/) Cloudflare presents a client certificate when it connects to the origin, and nginx rejects every connection without it (`400 No required SSL certificate was sent`). That replaces the IP allow list of Cloudflare's ranges, and it works with `real-cloudflare.conf` (see [IP allow lists](#ip-allow-lists-for-cdns-and-microsoft) for why the allow list does not).
+
+1. Cloudflare dashboard: SSL/TLS > Origin Server > **Authenticated Origin Pulls**: on.
+2. Then include the snippet in the site's server block. The other way round, the site fails with 400 until the switch is on.
+
+   ```
+   include snippets/cloudflare-authenticated-origin-pull.conf;
+   ```
+
+The CA `ssl/authenticated_origin_pull_ca.pem` is public and tracked in git (valid until Nov 1 2029). It is no secret, and tracked in the template it reaches every server repo with the next merge, also when Cloudflare replaces it. Compare it with the source after a change:
+
+```bash
+curl -s https://developers.cloudflare.com/ssl/static/authenticated_origin_pull_ca.pem | diff - ssl/authenticated_origin_pull_ca.pem && echo identical
+```
+
+ The global certificate is the same for all Cloudflare customers: it blocks direct access, but not a request routed through another Cloudflare account. For more, upload your own client certificate to Cloudflare (zone-level or per-hostname AOP) and point `ssl_client_certificate` at your own CA.
+
+Not to be confused with [mTLS for clients](https://developers.cloudflare.com/ssl/client-certificates/enable-mtls/) (API Shield): there, visitors authenticate to Cloudflare with client certificates. That is configured in Cloudflare only and does not change nginx.
+
+### Visitor IP behind Cloudflare
+
+Cloudflare sends the visitor IP in `CF-Connecting-IP` and `X-Forwarded-For` on all plans. `snippets/real-cloudflare.conf` (generated by `scripts/update-cloudflare-ips.sh`) trusts `CF-Connecting-IP` from Cloudflare's ranges only. After that, the visitor IP is in the access log, `allow`/`deny` applies to the visitor, and `snippets/proxy.conf` passes it to the upstream.
+
+The managed transform "Add True-Client-IP header" is not needed. It adds the same address in a third header, for software that expects it from another vendor (Akamai).
+
+### Visitor IP behind BunnyCDN
+
+BunnyCDN sends the visitor IP in `X-Real-IP` (and in `X-Forwarded-For` after the CDN address). Bunny has no client certificates, so `snippets/cdn-only.conf` rejects requests that did not come from Bunny's ranges:
+
+```
+server {
+  ...
+  include snippets/real-bunny.conf;   # scripts/update-bunny-ips.sh
+  include snippets/cdn-only.conf;
+}
+```
+
+Sites that instead combine `allow-bunny-ipv*.conf` with own `proxy_set_header` lines to pass Bunny's headers through can switch to this and use `include snippets/proxy.conf;` again.
+
+### Visitor IP in the upstream
+
+`snippets/proxy.conf` sets `X-Real-IP` and `X-Forwarded-For` to the client address that nginx-proxy determined, it replaces any value the client sent. The upstream only has to trust nginx-proxy, it does not need to know the CDN. Trust the address pool of the Docker networks (e.g. `172.17.0.0/16`, see `docker network inspect www-network`), not a container name, which is resolved once at startup:
+
+| Upstream | Configuration |
+|---|---|
+| nginx (e.g. in front of PHP-FPM) | `set_real_ip_from 172.17.0.0/16;` `real_ip_header X-Real-IP;` and `fastcgi_param REMOTE_ADDR $remote_addr;` |
+| Apache | `RemoteIPHeader X-Real-IP` `RemoteIPInternalProxy 172.17.0.0/16` |
+| Gunicorn / Uvicorn | `--forwarded-allow-ips=172.17.0.0/16` |
+| Express | `app.set('trust proxy', '172.17.0.0/16')` |
+| Koa (e.g. Strapi) | enable the proxy setting (`app.proxy`), see the framework's docs |
+
 ## Test the configuration locally
 
 Certificates, DH parameters and generated IP lists are not in git, so a fresh clone cannot simply be started to try a change. `scripts/test-config.sh` fills the gaps with dummy files and tests the configuration in a throw-away nginx container:
 
 1. `nginx -t`: the configuration is accepted, e.g. no duplicate directives or unknown variables.
 2. Response headers of a test location with its own `add_header`: the security headers from `ssl.conf` must still be sent.
+3. The ACME challenge stays reachable on a site with `deny all`.
+4. `conf.d/example-cloudflare.com`: Authenticated Origin Pulls reject a client without certificate (with a test CA instead of Cloudflare's).
+5. `snippets/cdn-only.conf`: direct requests get 403, requests through the CDN pass.
 
 ```bash
 docker pull nginx
