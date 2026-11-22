@@ -37,10 +37,11 @@ server {
   # allow 1.2.3.4;
   # deny all;
 
+  # Upstream container in www-network. As a variable, nginx resolves it per
+  # request (resolver in snippets/ssl.conf) and starts even if it is down.
+  set $upstream container_name;
+
   location / {
-    # Upstream
-    resolver 127.0.0.11 valid=30s;
-    set $upstream container_name;
     proxy_pass http://$upstream;
 
     # Headers, HTTP/1.1 and WebSocket upgrade. X-Real-IP and X-Forwarded-For

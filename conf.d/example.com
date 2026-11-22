@@ -38,6 +38,10 @@ server {
   # Optional stricter security headers, see the snippet before enabling
   # include snippets/security-headers-strict.conf;
 
+  # Upstream container in www-network. As a variable, nginx resolves it per
+  # request (resolver in snippets/ssl.conf) and starts even if it is down.
+  set $upstream container_name;
+
   location / {
     # Optional IP based restriction
     # allow 1.2.3.4;
@@ -47,9 +51,6 @@ server {
     # auth_basic "Restricted Content";
     # auth_basic_user_file /etc/nginx/protect/.htpasswd;
 
-    # Upstream
-    resolver 127.0.0.11 valid=30s;
-    set $upstream container_name;
     proxy_pass http://$upstream;
 
     # Headers, HTTP/1.1 and WebSocket upgrade
