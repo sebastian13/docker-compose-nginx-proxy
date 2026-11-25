@@ -346,6 +346,24 @@ scripts/test-config.sh ../my-server-repo    # another checkout, e.g. after mergi
 
 It does not use real certificates and cannot reach upstream containers, so sites with a fixed `proxy_pass http://container:port;` fail with "host not found". On the server, test the real configuration with `docker exec nginx-proxy nginx -t` before reloading.
 
+### In CI
+
+The script copies the configuration into the containers with `docker cp` instead of bind mounts, so it also works with a remote Docker daemon, e.g. GitLab CI with `docker:dind`. The requests go to the host of `DOCKER_HOST=tcp://host:port`, or to `TEST_HOST` if set. A GitLab CI job could look like this:
+
+```yaml
+test-config:
+  image: docker:28
+  services:
+    - docker:28-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - apk add --no-cache bash curl openssl perl
+  script:
+    - scripts/test-config.sh
+```
+
 ## Password protection
 
 To protect your site with basic http authentication, create a .htpasswd file, spin up an apache container by running the following.

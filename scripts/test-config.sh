@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Test the nginx configuration of this repo on a workstation, before pushing.
+# Test the nginx configuration of this repo on a workstation before pushing,
+# or in a CI job before deploying.
 #
 # Why: certificates, DH parameters and generated IP lists are not in git, so
 # "docker compose up" or "nginx -t" fail on a fresh clone. This script fills
@@ -40,7 +41,14 @@
 #   nginx-image  defaults to "nginx" (latest, as in docker-compose.yml).
 #                Run "docker pull nginx" first to test the current release.
 #
-# Requires: docker, openssl, perl, curl
+# Requires: bash, docker, openssl, perl, curl
+#
+# Remote Docker daemons (GitLab CI with docker:dind, DOCKER_HOST=tcp://...):
+# the configuration is copied into the containers with "docker cp", no bind
+# mounts, so the daemon does not need access to the local filesystem. The test
+# container publishes its port on the daemon's host, the requests go there.
+#   TEST_HOST  host that reaches the published port. Defaults to the host of
+#              DOCKER_HOST=tcp://host:port, otherwise 127.0.0.1.
 
 set -euo pipefail
 
@@ -57,6 +65,14 @@ trap cleanup EXIT
 for BIN in docker openssl perl curl; do
   command -v "$BIN" >/dev/null 2>&1 || { echo "Required command not found: $BIN" >&2; exit 1; }
 done
+
+# Where the published port of the test container is reachable
+if [ -z "${TEST_HOST:-}" ] && [[ "${DOCKER_HOST:-}" =~ ^tcp://([^:/]+) ]]; then
+  TEST_HOST="${BASH_REMATCH[1]}"
+fi
+TEST_HOST="${TEST_HOST:-127.0.0.1}"
+# A local daemon publishes on loopback only, a remote one on all interfaces
+if [ "$TEST_HOST" = "127.0.0.1" ]; then BIND="127.0.0.1"; else BIND="0.0.0.0"; fi
 
 echo "== Testing $REPO"
 cp -R "$REPO/conf.d" "$REPO/snippets" "$WORK/"
@@ -149,26 +165,42 @@ server {
 }
 EOF
 
-VOLUMES=(
-  -v "$WORK/conf.d:/etc/nginx/conf.d:ro"
-  -v "$WORK/snippets:/etc/nginx/snippets:ro"
-  -v "$WORK/ssl:/etc/nginx/ssl:ro"
-)
+# Create an nginx container and copy the test configuration into it.
+# "docker cp" instead of bind mounts works with remote daemons as well.
+# conf.d replaces the image's default.conf, as the repo has its own.
+create_nginx() {
+  local ID
+  ID=$(docker create "$@")
+  docker cp "$WORK/conf.d/." "$ID:/etc/nginx/conf.d/" >/dev/null
+  docker cp "$WORK/snippets" "$ID:/etc/nginx/" >/dev/null
+  docker cp "$WORK/ssl" "$ID:/etc/nginx/" >/dev/null
+  echo "$ID"
+}
+
+# Send the requests to the test container, whatever host name the URL has
+curl_test() {
+  curl -sk -o /dev/null --connect-to "::$TEST_HOST:$PORT" "$@"
+}
 
 # 1. Syntax and semantics
 echo
 echo "== nginx -t ($IMAGE)"
-docker run --rm "${VOLUMES[@]}" "$IMAGE" sh -c 'nginx -v && nginx -t'
+docker start -a "$(create_nginx --rm "$IMAGE" sh -c 'nginx -v && nginx -t')"
 
-# 2. Runtime: start nginx on a random port of 127.0.0.1 and check the headers
+# 2. Runtime: start nginx on a random port and check the headers
 #    of the test location. Without working header inheritance, HSTS, nosniff
 #    and CSP would be missing here, while nginx -t is still happy.
 echo
 echo "== Response headers of https://example.com/static/"
-CID=$(docker run -d --rm "${VOLUMES[@]}" -p 127.0.0.1::443 "$IMAGE")
+CID=$(create_nginx --rm -p "$BIND::443" "$IMAGE")
+docker start "$CID" >/dev/null
 PORT=$(docker port "$CID" 443/tcp | head -n1 | sed 's/.*://')
-sleep 1
-HEADERS=$(curl -sk -o /dev/null -D - --resolve "example.com:$PORT:127.0.0.1" "https://example.com:$PORT/static/")
+# Wait until nginx answers (a remote daemon may take longer than a local one)
+for _ in $(seq 1 20); do
+  [ "$(curl_test -w '%{http_code}' https://example.com/static/ || true)" != "000" ] && break
+  sleep 0.5
+done
+HEADERS=$(curl_test -D - https://example.com/static/)
 echo "$HEADERS" | grep -iE '^(HTTP|strict-transport|x-content-type|content-security|cache-control|alt-svc|referrer-policy|permissions-policy|cross-origin)'
 
 echo
@@ -180,8 +212,8 @@ done
 # 3. ACME challenge on a site with "deny all" on the server level: must not
 #    be 403. No certbot container is running here, so 502 is expected.
 echo
-CODE=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "acme.local:$PORT:127.0.0.1" "https://acme.local:$PORT/.well-known/acme-challenge/test")
-ROOT=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "acme.local:$PORT:127.0.0.1" "https://acme.local:$PORT/")
+CODE=$(curl_test -w '%{http_code}' https://acme.local/.well-known/acme-challenge/test)
+ROOT=$(curl_test -w '%{http_code}' https://acme.local/)
 if [ "$CODE" != "403" ] && [ "$ROOT" = "403" ]; then
   echo "OK      ACME challenge reachable despite deny all ($CODE, rest of the site $ROOT)"
 else
@@ -191,9 +223,8 @@ fi
 # 4. Authenticated Origin Pulls: without client certificate nginx answers 400.
 #    With the certificate the request reaches the proxy_pass, which fails with
 #    502 because the upstream container does not exist here.
-NOCERT=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "cloudflare.local:$PORT:127.0.0.1" "https://cloudflare.local:$PORT/")
-WITHCERT=$(curl -sk -o /dev/null -w '%{http_code}' --cert "$WORK/client.crt" --key "$WORK/client.key" \
-  --resolve "cloudflare.local:$PORT:127.0.0.1" "https://cloudflare.local:$PORT/")
+NOCERT=$(curl_test -w '%{http_code}' https://cloudflare.local/)
+WITHCERT=$(curl_test -w '%{http_code}' --cert "$WORK/client.crt" --key "$WORK/client.key" https://cloudflare.local/)
 if [ "$NOCERT" = "400" ] && [ "$WITHCERT" = "502" ]; then
   echo "OK      Authenticated Origin Pulls (without client certificate $NOCERT, with $WITHCERT)"
 else
@@ -202,9 +233,8 @@ fi
 
 # 5. cdn-only.conf: with the visitor IP header the realip module replaces the
 #    address (request "through the CDN"), without it the address stays.
-VIACDN=$(curl -sk -o /dev/null -w '%{http_code}' -H 'X-Real-IP: 203.0.113.7' \
-  --resolve "cdn.local:$PORT:127.0.0.1" "https://cdn.local:$PORT/")
-DIRECT=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "cdn.local:$PORT:127.0.0.1" "https://cdn.local:$PORT/")
+VIACDN=$(curl_test -w '%{http_code}' -H 'X-Real-IP: 203.0.113.7' https://cdn.local/)
+DIRECT=$(curl_test -w '%{http_code}' https://cdn.local/)
 if [ "$VIACDN" = "200" ] && [ "$DIRECT" = "403" ]; then
   echo "OK      cdn-only.conf (through the CDN $VIACDN, direct $DIRECT)"
 else
